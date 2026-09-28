@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070c12" />
+<title>Simulador de Diagnóstico y Resolución de Fallas de Hardware</title>
+<style>
+/* ============================================================
+   RESET & VARIABLES
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#070c12;
+  --panel:#101b26;
+  --panel-2:#162634;
+  --panel-3:#1b2e3f;
+  --line:#1f3purple;
+  --line:#1f3448;
+  --accent:#00d4ff;
+  --accent-d:#0a86ad;
+  --green:#00e5a0;
+  --amber:#ffb020;
+  --red:#ff4d5e;
+  --txt:#dceaf5;
+  --muted:#7d95a9;
+  --radius:14px;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',sans-serif;
+  background:
+    radial-gradient(1200px 600px at 8% -10%, #0d2233 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 5%, #10283a 0%, transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--txt);
+  min-height:100vh;
+  line-height:1.55;
+  padding-bottom:50px;
+  overflow-x:hidden;
+}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+.wrap{max-width:1180px;margin:0 auto;padding:0 14px}
+
+header.topbar{
+  position:sticky;top:0;z-index:60;
+  backdrop-filter:blur(12px);
+  background:rgba(7,12,18,.82);
+  border-bottom:1px solid var(--line);
+}
+.topbar-inner{
+  max-width:1180px;margin:0 auto;padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:.92rem;letter-spacing:.3px}
+.brand .logo{
+  width:32px;height:32px;border-radius:9px;flex:0 0 auto;
+  background:linear-gradient(135deg,var(--accent),#0077a8);
+  display:grid;place-items:center;font-size:1rem;
+  box-shadow:0 0 18px rgba(0,212,255,.35);
+}
+.brand small{display:block;font-weight:400;font-size:.68rem;color:var(--muted);letter-spacing:.5px}
+.user-chip{
+  display:flex;align-items:center;gap:8px;font-size:.76rem;
+  background:var(--panel);border:1px solid var(--line);
+  padding:6px 12px;border-radius:99px;color:var(--muted);
+}
+.user-chip b{color:var(--accent)}
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+.screen{display:none}
+.screen.active{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.card{
+  background:linear-gradient(180deg,var(--panel),#0c1620);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:18px;
+  box-shadow:var(--shadow);
+}
+.card + .card{margin-top:14px}
+
+h1.title{font-size:1.45rem;line-height:1.25;margin-bottom:6px}
+h2.sub{font-size:1.1rem;margin-bottom:10px}
+h3{font-size:.95rem;margin-bottom:8px}
+p.lead{color:var(--muted);font-size:.88rem;margin-bottom:14px}
+
+/* ============================================================
+   FORMULARIOS
+   ============================================================ */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.field input,.field select,.field textarea{
+  width:100%;padding:13px 14px;border-radius:11px;
+  background:#0a141d;border:1px solid var(--line);color:var(--txt);
+  font-size:1rem;outline:none;transition:.18s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,255,.14);
+}
+.field textarea{min-height:96px;resize:vertical;font-size:.92rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.grid-2{grid-template-columns:1fr}}
+
+/* ============================================================
+   BOTONES
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 20px;border-radius:12px;font-size:.95rem;font-weight:600;
+  background:var(--panel-2);color:var(--txt);border:1px solid var(--line);
+  transition:.16s;width:100%;
+}
+.btn:active{transform:scale(.98)}
+.btn.primary{
+  background:linear-gradient(135deg,var(--accent),#0089b8);
+  color:#03151d;border:none;box-shadow:0 6px 20px rgba(0,212,255,.28);
+}
+.btn.green{background:linear-gradient(135deg,var(--green),#00a878);color:#03211a;border:none}
+.btn.amber{background:linear-gradient(135deg,var(--amber),#d18a00);color:#231500;border:none}
+.btn.ghost{background:transparent}
+.btn.danger{background:linear-gradient(135deg,var(--red),#c62b3b);color:#fff;border:none}
+.btn.sm{padding:10px 14px;font-size:.83rem;width:auto}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+/* ============================================================
+   TARJETAS DE CASO
+   ============================================================ */
+.casos-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:16px}
+@media(min-width:820px){.casos-grid{grid-template-columns:repeat(3,1fr)}}
+.caso-card{
+  background:linear-gradient(180deg,var(--panel),#0b141d);
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px;text-align:left;transition:.2s;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:10px;
+}
+.caso-card:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,212,255,.12)}
+.caso-card .ic{font-size:1.9rem}
+.caso-card h3{font-size:1rem;margin:0}
+.caso-card p{font-size:.82rem;color:var(--muted);flex:1}
+.tag{
+  display:inline-block;font-size:.68rem;letter-spacing:.8px;text-transform:uppercase;
+  background:rgba(0,212,255,.12);color:var(--accent);border:1px solid rgba(0,212,255,.3);
+  padding:3px 9px;border-radius:99px;font-weight:700;width:fit-content;
+}
+
+/* ============================================================
+   SIMULADOR
+   ============================================================ */
+.sim-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+@media(min-width:980px){.sim-grid{grid-template-columns:1fr 372px}}
+
+.sintoma-box{
+  background:linear-gradient(135deg,rgba(255,176,32,.09),rgba(255,176,32,.02));
+  border:1px solid rgba(255,176,32,.32);
+  border-left:4px solid var(--amber);
+  border-radius:11px;padding:13px 15px;font-size:.85rem;color:#ffe1ab;margin-bottom:14px;
+}
+.sintoma-box b{color:var(--amber)}
+
+/* Fases / progreso */
+.fases{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.fase-pill{
+  font-size:.66rem;letter-spacing:.6px;text-transform:uppercase;font-weight:700;
+  padding:5px 10px;border-radius:99px;background:#0b1822;border:1px solid var(--line);color:var(--muted);
+}
+.fase-pill.done{background:rgba(0,229,160,.12);border-color:rgba(0,229,160,.4);color:var(--green)}
+.fase-pill.now{background:rgba(0,212,255,.14);border-color:var(--accent);color:var(--accent);box-shadow:0 0 14px rgba(0,212,255,.2)}
+
+.etapa-titulo{font-size:1.05rem;font-weight:700;margin-bottom:6px;color:#fff}
+.etapa-texto{font-size:.88rem;color:var(--muted);margin-bottom:14px}
+
+.opciones{display:flex;flex-direction:column;gap:10px}
+.opcion{
+  text-align:left;padding:14px 15px;border-radius:12px;
+  background:var(--panel-2);border:1px solid var(--line);
+  color:var(--txt);font-size:.88rem;line-height:1.4;transition:.16s;
+  display:flex;gap:10px;align-items:flex-start;
+}
+.opcion:hover{border-color:var(--accent);background:#1a2d3d}
+.opcion:active{transform:scale(.99)}
+.opcion .num{
+  flex:0 0 auto;width:22px;height:22px;border-radius:7px;background:#0a1822;
+  display:grid;place-items:center;font-size:.7rem;font-weight:700;color:var(--accent);
+  border:1px solid var(--line);margin-top:1px;
+}
+
+.feedback{
+  margin-top:14px;padding:14px;border-radius:12px;font-size:.86rem;
+  border:1px solid var(--line);background:#0b1822;line-height:1.5;
+  animation:fade .25s ease;
+}
+.feedback.ok{border-color:rgba(0,229,160,.45);background:rgba(0,229,160,.08);color:#b9ffe6}
+.feedback.bad{border-color:rgba(255,77,94,.45);background:rgba(255,77,94,.08);color:#ffc9cf}
+
+/* Panel lateral */
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tool-btn{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:12px 6px;border-radius:11px;background:var(--panel-2);
+  border:1px solid var(--line);color:var(--txt);font-size:.7rem;font-weight:600;
+  transition:.16s;text-align:center;
+}
+.tool-btn:hover{border-color:var(--accent);background:#1a2d3d}
+.tool-btn .ti{font-size:1.2rem}
+.tool-btn.done{border-color:rgba(0,229,160,.5);background:rgba(0,229,160,.07)}
+
+.bitacora{
+  max-height:250px;overflow-y:auto;font-size:.78rem;
+  display:flex;flex-direction:column;gap:7px;padding-right:4px;
+}
+.bitacora::-webkit-scrollbar{width:6px}
+.bitacora::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+.log-item{
+  padding:8px 10px;border-radius:9px;background:#0b1822;border-left:3px solid var(--accent);
+  color:#bcd4e6;animation:fade .3s ease;word-break:break-word;
+}
+.log-item .hora{display:block;font-size:.62rem;color:var(--muted);letter-spacing:.5px}
+.log-empty{color:var(--muted);font-size:.78rem;font-style:italic}
+
+.pendiente{
+  margin-top:10px;padding:11px 13px;border-radius:11px;font-size:.78rem;
+  background:rgba(255,176,32,.09);border:1px solid rgba(255,176,32,.35);color:#ffd89a;
+}
+.pendiente b{color:var(--amber)}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:200;background:rgba(3,7,11,.82);
+  backdrop-filter:blur(5px);display:none;align-items:flex-start;justify-content:center;
+  padding:16px;overflow-y:auto;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:linear-gradient(180deg,#12202c,#0a141d);
+  border:1px solid var(--line);border-radius:16px;
+  width:100%;max-width:640px;margin:auto;box-shadow:var(--shadow);
+  animation:pop .25s ease;
+}
+@keyframes pop{from{opacity:0;transform:scale(.95) translateY(14px)}to{opacity:1;transform:none}}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:15px 18px;border-bottom:1px solid var(--line);
+}
+.modal-head h3{font-size:.95rem;margin:0;color:#fff}
+.modal-head button{
+  background:transparent;color:var(--muted);font-size:1.4rem;line-height:1;
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+}
+.modal-head button:hover{background:var(--panel-2);color:var(--red)}
+.modal-body{padding:18px}
+
+/* ============================================================
+   TABLAS
+   ============================================================ */
+.tabla-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:11px;border:1px solid var(--line)}
+table.tabla{width:100%;border-collapse:collapse;font-size:.8rem;min-width:430px}
+table.tabla th{
+  background:#0b1822;color:var(--muted);text-transform:uppercase;font-size:.64rem;
+  letter-spacing:.8px;padding:10px 10px;text-align:left;border-bottom:1px solid var(--line);
+  position:sticky;top:0;
+}
+table.tabla td{padding:10px;border-bottom:1px solid #14222e;vertical-align:middle}
+table.tabla tr:last-child td{border-bottom:none}
+.ok-txt{color:var(--green);font-weight:700}
+.bad-txt{color:var(--red);font-weight:700}
+.muted{color:var(--muted)}
+.mini-select{
+  background:#0a141d;border:1px solid var(--line);color:var(--txt);
+  border-radius:8px;padding:6px 8px;font-size:.75rem;width:100%;min-width:78px;
+}
+.btn-mini{
+  background:var(--accent);color:#03151d;border-radius:8px;padding:7px 12px;
+  font-size:.72rem;font-weight:700;white-space:nowrap;
+}
+
+/* ============================================================
+   TERMINAL / EVIDENCIA
+   ============================================================ */
+.terminal{
+  background:#020a06;border:1px solid #12402a;border-radius:11px;
+  padding:14px;font-family:'Consolas','Courier New',monospace;
+  font-size:.76rem;color:#33ff88;min-height:190px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-word;
+  box-shadow:inset 0 0 40px rgba(0,255,120,.07);overflow-x:auto;
+}
+.terminal .dim{color:#1e9e5c}
+
+.smart-card{
+  background:#0b1822;border:1px solid var(--line);border-radius:12px;padding:14px;
+}
+.smart-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.smart-badge{
+  width:64px;height:64px;border-radius:50%;flex:0 0 auto;
+  border:5px solid var(--green);display:grid;place-items:center;
+  font-weight:800;font-size:.68rem;color:var(--green);text-align:center;line-height:1.1;
+}
+.smart-info{font-size:.78rem;color:var(--muted);flex:1;min-width:170px}
+.smart-info b{color:var(--txt);display:block;font-size:.9rem}
+
+/* ============================================================
+   CHECKLIST / INFORME
+   ============================================================ */
+.check-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.check-item{
+  display:flex;align-items:center;gap:10px;font-size:.82rem;
+  padding:10px 12px;border-radius:10px;background:#0b1822;border:1px solid var(--line);
+}
+.check-item .dot{
+  width:20px;height:20px;border-radius:50%;flex:0 0 auto;
+  display:grid;place-items:center;font-size:.7rem;font-weight:800;
+  background:#16242f;color:var(--muted);border:1px solid var(--line);
+}
+.check-item.done .dot{background:rgba(0,229,160,.15);color:var(--green);border-color:rgba(0,229,160,.5)}
+.check-item.done{color:#b9ffe6;border-color:rgba(0,229,160,.28)}
+
+.informe-doc{
+  background:#f7f9fb;color:#152029;border-radius:12px;padding:22px;
+  font-size:.82rem;line-height:1.6;
+}
+.informe-doc h2{font-size:1.15rem;color:#0a3d55;margin-bottom:4px}
+.informe-doc h4{font-size:.85rem;color:#0a6d8f;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d5e2ea;padding-bottom:4px}
+.informe-doc p,.informe-doc li{color:#25333d}
+.informe-doc ul{padding-left:20px}
+.informe-doc table{width:100%;border-collapse:collapse;font-size:.78rem;margin-top:6px}
+.informe-doc th{background:#e5eef4;color:#0a3d55;padding:7px;text-align:left;border:1px solid #cddde7}
+.informe-doc td{padding:7px;border:1px solid #cddde7}
+.informe-portada{border-left:5px solid #0a86ad;padding-left:14px;margin-bottom:8px}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+#toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(120px);
+  background:#0f1e29;border:1px solid var(--accent);color:var(--txt);
+  padding:12px 20px;border-radius:12px;font-size:.83rem;z-index:400;
+  transition:.3s;max-width:90vw;text-align:center;box-shadow:var(--shadow);
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:var(--red)}
+
+.footer-note{text-align:center;font-size:.7rem;color:#3d5468;margin-top:26px;letter-spacing:.4px}
+.hint{font-size:.78rem;color:var(--muted);margin-bottom:12px}
+.divider{height:1px;background:var(--line);margin:16px 0}
+.acciones-finales{display:flex;flex-direction:column;gap:9px;margin-top:14px}
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="logo">⚙️</div>
+      <div>Lab. Hardware
+        <small>Simulador de Diagnóstico y Resolución de Fallas</small>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="user-chip" id="userChip" style="display:none"></div>
+      <button class="btn sm ghost" id="btnReset" style="display:none" onclick="reiniciarTodo()">↺ Reiniciar</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= PANTALLA 1: LOGIN ================= -->
+  <section id="screen-login" class="screen active" style="padding-top:26px">
+    <div class="card" style="max-width:520px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:18px">
+        <div style="font-size:2.4rem;line-height:1">🧪</div>
+        <h1 class="title" style="margin-top:8px">Simulador de Diagnóstico de Hardware</h1>
+        <p class="lead">Método Científico aplicado al Hardware · Cuatro Pilares del Técnico Profesional</p>
+      </div>
+
+      <div class="field">
+        <label for="inNombre">Nombre</label>
+        <input id="inNombre" type="text" placeholder="Ej.: Ana" autocomplete="given-name" />
+      </div>
+      <div class="field">
+        <label for="inApellido">Apellido</label>
+        <input id="inApellido" type="text" placeholder="Ej.: Gómez" autocomplete="family-name" />
+      </div>
+      <div class="field">
+        <label for="inCurso">Curso / División</label>
+        <input id="inCurso" type="text" placeholder="Ej.: 6° A — Tecnicatura en Informática" />
+      </div>
+
+      <button class="btn primary" onclick="ingresar()">Ingresar al Laboratorio →</button>
+
+      <div class="divider"></div>
+      <p style="font-size:.74rem;color:var(--muted);text-align:center">
+        🔌 Desconectar siempre &nbsp;·&nbsp; 🔬 Un cambio a la vez<br>
+        👀 Verificar lo obvio &nbsp;·&nbsp; 📝 Documentar todo
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= PANTALLA 2: CASOS ================= -->
+  <section id="screen-casos" class="screen" style="padding-top:22px">
+    <div class="card">
+      <h1 class="title">Selección de Escenario de Falla</h1>
+      <p class="lead">Elija el caso a diagnosticar. Deberá aplicar el método científico completo: observar, formular hipótesis, aislar, verificar y documentar.</p>
+      <div class="casos-grid" id="casosGrid"></div>
+    </div>
+    <div class="card">
+      <h3>🔬 Recordatorio del Método Científico</h3>
+      <p style="font-size:.83rem;color:var(--muted);margin-top:6px">
+        <b style="color:var(--accent)">1 Observar</b> → registrar beeps, LEDs y mensajes de error ·
+        <b style="color:var(--accent)">2 Formular hipótesis</b> → proponer la causa probable ·
+        <b style="color:var(--accent)">3 Aislar</b> → probar un componente a la vez ·
+        <b style="color:var(--accent)">4 Verificar</b> → confirmar la resolución ·
+        <b style="color:var(--accent)">5 Documentar</b> → registrar causa raíz y pasos.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= PANTALLA 3: SIMULADOR ================= -->
+  <section id="screen-sim" class="screen" style="padding-top:22px">
+    <div class="sim-grid">
+
+      <!-- Columna principal -->
+      <div>
+        <div class="card" style="padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <div>
+              <div class="tag" id="simTag">CASO</div>
+              <h2 class="sub" id="simTitulo" style="margin-top:6px"></h2>
+            </div>
+            <button class="btn sm ghost" onclick="volverCasos()">← Cambiar caso</button>
+          </div>
+          <div class="sintoma-box" id="simSintoma"></div>
+        </div>
+
+        <div class="card">
+          <div class="fases" id="fasesBar"></div>
+          <div class="etapa-titulo" id="etapaTitulo"></div>
+          <div class="etapa-texto" id="etapaTexto"></div>
+          <div class="opciones" id="opcionesBox"></div>
+          <div id="feedbackBox"></div>
+          <div class="acciones-finales" id="accionesFinales"></div>
+        </div>
+      </div>
+
+      <!-- Panel lateral -->
+      <div>
+        <div class="card">
+          <h3>🧰 Herramientas de Diagnóstico</h3>
+          <p class="hint" style="margin:6px 0 10px">Registre evidencia física y de software.</p>
+          <div class="tools">
+            <button class="tool-btn" id="toolMult" onclick="abrirMultimetro()"><span class="ti">🔌</span>Multímetro ATX</button>
+            <button class="tool-btn" id="toolMem" onclick="abrirMemTest()"><span class="ti">🧠</span>MemTest86+</button>
+            <button class="tool-btn" id="toolDisk" onclick="abrirDiskInfo()"><span class="ti">💽</span>CrystalDiskInfo</button>
+            <button class="tool-btn" id="toolFicha" onclick="abrirFicha()"><span class="ti">📋</span>Ficha Técnica</button>
+          </div>
+          <div id="pendienteBox"></div>
+        </div>
+
+        <div class="card">
+          <h3>📝 Bitácora de Diagnóstico</h3>
+          <div class="bitacora" id="bitacoraBox" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card" id="cardFinalizar" style="display:none">
+          <h3>✅ Falla Resuelta</h3>
+          <p class="hint" style="margin:6px 0 10px">Complete la evidencia pendiente y genere su informe técnico.</p>
+          <button class="btn green" onclick="mostrarInforme()">📄 Ver Informe Técnico</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= PANTALLA 4: INFORME ================= -->
+  <section id="screen-informe" class="screen" style="padding-top:22px">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div>
+          <h1 class="title" style="font-size:1.2rem">📄 Informe Técnico</h1>
+          <p class="lead" style="margin:0">Revise el documento antes de descargarlo.</p>
+        </div>
+        <button class="btn sm ghost" onclick="volverSim()">← Volver al simulador</button>
+      </div>
+
+      <h3 style="margin-top:6px">Checklist de Evidencia</h3>
+      <div class="check-list" id="checkList"></div>
+
+      <div class="divider"></div>
+
+      <h3>Recomendaciones Preventivas</h3>
+      <p class="hint" style="margin:6px 0 8px">Redacte al menos una medida preventiva para evitar la recurrencia de la falla (obligatorio para descargar).</p>
+      <div class="field">
+        <textarea id="txtPrevencion" placeholder="Ej.: Verificar el correcto asentamiento de los módulos RAM y los seguros de retención antes de cerrar el gabinete. Realizar mantenimiento preventivo semestral..." oninput="S.resolucion.prevencion=this.value"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="txtObs">Observaciones adicionales (opcional)</label>
+        <textarea id="txtObs" placeholder="Notas del técnico, repuestos utilizados, tiempo de reparación..." oninput="S.resolucion.observaciones=this.value"></textarea>
+      </div>
+
+      <button class="btn primary" id="btnDescargar" onclick="descargarInforme()">⬇ Descargar Informe Técnico (.doc)</button>
+      <p class="hint" style="margin-top:8px;text-align:center">El archivo se abre directamente en Microsoft Word o Google Docs.</p>
+    </div>
+
+    <div class="card" style="padding:12px">
+      <div class="informe-doc" id="informePreview"></div>
+    </div>
+  </section>
+
+  <div class="footer-note">
+    Laboratorio de Hardware · Manual Práctico de Actualización Técnica y Pedagógica
+  </div>
+</div>
+
+<!-- ================= MODAL ================= -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitulo">Título</h3>
+      <button onclick="cerrarModal()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+const S = {
+  alumno:{nombre:'',apellido:'',curso:''},
+  casoId:null,
+  caso:null,
+  etapaIdx:0,
+  bitacora:[],
+  cambioPendiente:null,
+  voltajes:{},
+  memtest:null,
+  smart:null,
+  ficha:null,
+  desconectado:false,
+  completado:false,
+  fecha:new Date(),
+  resolucion:{prevencion:'',observaciones:''}
+};
+
+const RAILS = [
+  {id:'+12V', nominal:12.00},
+  {id:'+5V',  nominal:5.00},
+  {id:'+3.3V',nominal:3.30},
+  {id:'+5VSB',nominal:5.00}
+];
+
+/* ============================================================
+   FICHAS TÉCNICAS POR CASO
+   ============================================================ */
+const EQUIPOS = {
+  A:{
+    cpu:'Intel Core i5-12400F (6 núcleos / 12 hilos)',
+    socket:'LGA 1700',
+    ram:'16 GB (2 × 8 GB) DDR4-3200 MHz CL16',
+    mother:'ASUS PRIME B660M-A DDR4 — Rev. 1.02',
+    bios:'AMI UEFI v2403 (2023)',
+    psu:'EVGA 600 W 80+ Bronze — Modelo 100-BR-0600-K1',
+    storage:'Kingston NV2 NVMe PCIe 4.0 — 500 GB',
+    so:'Windows 11 Pro 23H2'
+  },
+  B:{
+    cpu:'AMD Ryzen 5 5600G',
+    socket:'AM4',
+    ram:'16 GB (2 × 8 GB) DDR4-3600 MHz CL18',
+    mother:'MSI B550M PRO-VDH WIFI — Rev. 1.1',
+    bios:'AMI UEFI v2.F0',
+    psu:'Cooler Master MWE 650 W 80+ Bronze',
+    storage:'Seagate BarraCuda ST1000DM010 — 1 TB HDD 7200 RPM',
+    so:'Windows 10 Pro (instalación GPT)'
+  },
+  C:{
+    cpu:'Intel Core i7-11700K (overclockeado)',
+    socket:'LGA 1200',
+    ram:'32 GB (2 × 16 GB) DDR4-3600 MHz CL18',
+    mother:'GIGABYTE Z590 AORUS Elite AX — Rev. 1.0',
+    bios:'AMI UEFI vF8 (perfil XMP/OC inestable)',
+    psu:'Seasonic Focus GX-750 80+ Gold',
+    storage:'Samsung 980 PRO NVMe — 1 TB',
+    so:'Windows 11 Pro'
+  }
+};
+
+/* ============================================================
+   DEFINICIÓN DE CASOS
+   ============================================================ */
+const CASOS = {
+  A:{
+    id:'A',
+    icono:'🖥️',
+    tag:'POST · MEMORIA',
+    titulo:'Falla A — Sin Video y Códigos de Error',
+    resumen:'El equipo enciende (ventiladores giran) pero no entrega video. Se escuchan beeps y el LED EZ Debug queda fijo en DRAM.',
+    sintoma:'El equipo enciende (ventiladores giran) pero <b>no entrega video</b>. Se perciben <b>beeps audibles</b> y el <b>LED EZ Debug permanece encendido en DRAM/VGA</b>.',
+    etapas:[
+      {
+        fase:'1 Observar',
+        titulo:'Observar la evidencia disponible',
+        texto:'La pantalla permanece negra. Antes de tocar cualquier componente, ¿cuál es su primera acción?',
+        opciones:[
+          {t:'Registrar el patrón de beeps y el LED EZ Debug de la placa base.',
+           ok:true, tipo:'observar',
+           fb:'✅ <b>Correcto.</b> Evidencia registrada: 1 beep largo + 2 cortos (BIOS AMI) = fallo de memoria. LED EZ Debug encendido de forma fija en DRAM.',
+           log:'OBSERVACIÓN — 1 beep largo + 2 cortos (AMI) → error de memoria. LED EZ Debug fijo en DRAM. Ventiladores giran.'},
+          {t:'Abrir el gabinete y desmontar todos los componentes para revisarlos.',
+           ok:false,
+           fb:'❌ Sin evidencia previa, desmontar todo viola el método científico y multiplica las variables en juego.'},
+          {t:'Reinstalar el sistema operativo con un USB de rescate.',
+           ok:false,
+           fb:'❌ El equipo no entrega video: es imposible iniciar cualquier entorno todavía.'}
+        ]
+      },
+      {
+        fase:'2 Hipótesis',
+        titulo:'Formular la hipótesis',
+        texto:'Con la evidencia obtenida (beeps de memoria + LED DRAM), ¿cuál es la causa probable?',
+        opciones:[
+          {t:'Módulo de RAM mal asentado o desalineado en su ranura.',
+           ok:true, tipo:'hipotesis',
+           fb:'✅ <b>Hipótesis correcta.</b> Es coherente con el código de beeps y con el LED de diagnóstico en DRAM.',
+           log:'HIPÓTESIS — Módulo de RAM mal asentado / desalineado en la ranura.'},
+          {t:'Disco de almacenamiento con sectores dañados.',
+           ok:false,
+           fb:'❌ El LED de diagnóstico señala DRAM, no almacenamiento. Además, sin POST no habría acceso a disco.'},
+          {t:'Fuente de alimentación con el raíl de +12 V fuera de tolerancia.',
+           ok:false,
+           fb:'❌ Los ventiladores giran y el equipo enciende, por lo que la fuente entrega energía. Puede comprobarlo con el multímetro.'}
+        ]
+      },
+      {
+        fase:'3 Aislar',
+        titulo:'Aislar la variable',
+        texto:'Aplique la regla de oro: un solo cambio a la vez. ¿Cómo aísla el componente sospechoso?',
+        opciones:[
+          {t:'Retirar el módulo de RAM y probar de a un módulo por vez en distintas ranuras.',
+           ok:true, tipo:'modificar', componente:'RAM',
+           fb:'✅ <b>Correcto.</b> Probar un módulo a la vez permite descartar la ranura y aislar el módulo defectuoso.',
+           log:'AISLAMIENTO — Prueba de módulos RAM uno a uno en ranuras distintas (descarte de variables).'},
+          {t:'Reemplazar el disco por uno nuevo.',
+           ok:false, tipo:'modificar', componente:'Almacenamiento',
+           fb:'❌ Está modificando un componente distinto al que señala la evidencia.'},
+          {t:'Resetear el CMOS puenteando los pines CLR_CMOS.',
+           ok:false, tipo:'modificar', componente:'CMOS',
+           fb:'❌ La configuración de la BIOS no explica el LED de DRAM. Aísle primero el componente señalado.'}
+        ]
+      },
+      {
+        fase:'4 Corregir',
+        titulo:'Aplicar la acción correctiva',
+        texto:'Ya identificó la causa. ¿Cómo aplica la corrección?',
+        opciones:[
+          {t:'Reinstalar el módulo RAM aplicando presión uniforme hasta escuchar el "clic" de los seguros de retención.',
+           ok:true, tipo:'modificar', componente:'RAM',
+           fb:'✅ <b>Acción correctiva aplicada.</b> Los seguros de retención confirmaron el correcto asentamiento del módulo.',
+           log:'ACCIÓN CORRECTIVA — Reinstalación del módulo RAM con presión uniforme hasta el clic de los seguros de retención.'},
+          {t:'Aprovechar y cambiar también la fuente de alimentación.',
+           ok:false, tipo:'modificar', componente:'Fuente',
+           fb:'❌ No se modifican dos variables simultáneamente.'},
+          {t:'Formatear el disco e instalar el sistema desde cero.',
+           ok:false, tipo:'modificar', componente:'Almacenamiento',
+           fb:'❌ Se perderían datos sin haber confirmado el diagnóstico.'}
+        ]
+      },
+      {
+        fase:'5 Verificar',
+        titulo:'Verificar la resolución',
+        texto:'¿Cómo confirma formalmente que la falla quedó resuelta?',
+        opciones:[
+          {t:'Encender el equipo y confirmar POST correcto, video y arranque del sistema operativo.',
+           ok:true, tipo:'verificar', completa:true,
+           fb:'✅ <b>Falla resuelta.</b> El equipo entrega video, completa el POST sin beeps de error y arranca el sistema operativo.',
+           log:'VERIFICACIÓN — POST correcto, video restablecido y arranque del SO exitoso. Falla resuelta.'},
+          {t:'Dar el equipo por reparado y entregarlo al usuario.',
+           ok:false,
+           fb:'❌ Sin verificación formal no se puede afirmar que la falla esté resuelta.'},
+          {t:'Volver a desmontar el módulo RAM para inspeccionarlo otra vez.',
+           ok:false,
+           fb:'❌ Introduciría una variable nueva sin necesidad alguna.'}
+        ]
+      }
+    ]
+  },
+
+  B:{
+    id:'B',
+    icono:'💾',
+    tag:'ALMACENAMIENTO · UEFI',
+    titulo:'Falla B — Dispositivo de Arranque No Encontrado',
+    resumen:'El POST finaliza pero aparece el mensaje "No bootable device". El disco recibe energía y gira con normalidad.',
+    sintoma:'El POST finaliza correctamente pero aparece el mensaje <b>"No bootable device"</b>. El disco recibe energía y se percibe actividad mecánica normal.',
+    etapas:[
+      {
+        fase:'1 Observar',
+        titulo:'Observar la evidencia del POST',
+        texto:'El equipo enciende y supera el POST, pero no arranca el sistema. ¿Qué registra primero?',
+        opciones:[
+          {t:'Registrar el mensaje exacto del POST y el orden de arranque configurado.',
+           ok:true, tipo:'observar',
+           fb:'✅ <b>Correcto.</b> Evidencia: mensaje "No bootable device — Insert boot disk and press any key". El disco aparece con actividad normal.',
+           log:'OBSERVACIÓN — POST superado. Mensaje "No bootable device" en pantalla. Disco con energía y actividad normal.'},
+          {t:'Formatear el disco e instalar el sistema desde cero.',
+           ok:false,
+           fb:'❌ Destruiría los datos sin haber diagnosticado la causa real.'},
+          {t:'Cambiar la fuente de alimentación.',
+           ok:false,
+           fb:'❌ El equipo enciende y completa el POST: la fuente entrega energía correctamente.'}
+        ]
+      },
+      {
+        fase:'2 Aislar',
+        titulo:'Descartar el hardware (Verificar lo obvio)',
+        texto:'Antes de tocar la configuración, verifique lo obvio. ¿Cuál es el primer paso de aislamiento?',
+        opciones:[
+          {t:'Revisar las conexiones SATA/M.2 y la alimentación del disco.',
+           ok:true, tipo:'modificar', componente:'Almacenamiento',
+           fb:'✅ <b>Correcto.</b> Conexiones firmes, cable SATA y alimentación en buen estado. El hardware físico queda descartado por ahora.',
+           log:'AISLAMIENTO — Verificación de conexiones SATA/M.2 y alimentación del disco. Conexiones firmes y correctas.'},
+          {t:'Reemplazar directamente el disco por uno nuevo.',
+           ok:false, tipo:'modificar', componente:'Almacenamiento',
+           fb:'❌ Cambiar el disco antes de verificar conexiones es un gasto innecesario y no aísla la variable.'},
+          {t:'Resetear el CMOS con el puente CLR_CMOS.',
+           ok:false, tipo:'modificar', componente:'CMOS',
+           fb:'❌ No hay evidencia de configuración corrupta. Primero descarte el hardware.'}
+        ]
+      },
+      {
+        fase:'3 Verificar',
+        titulo:'Verificar la detección física en el BIOS',
+        texto:'Ingrese al firmware. ¿Dónde confirma si el disco es detectado físicamente?',
+        opciones:[
+          {t:'Acceder a Storage Configuration y verificar si el disco aparece listado con su modelo.',
+           ok:true, tipo:'verificar',
+           fb:'✅ <b>Correcto.</b> Storage Configuration muestra: <b>Seagate ST1000DM010-2EP102 — 1000.2 GB</b>. El disco ES detectado físicamente → el problema es de configuración, no de hardware.',
+           log:'VERIFICACIÓN — Storage Configuration: disco detectado (Seagate ST1000DM010-2EP102, 1000.2 GB). Hardware OK.'},
+          {t:'Reinstalar Windows desde un USB de rescate.',
+           ok:false,
+           fb:'❌ Si el disco no arranca por configuración, reinstalar no resolvería la causa raíz.'},
+          {t:'Desconectar el disco y conectarlo en otro puerto SATA.',
+           ok:false, tipo:'modificar', componente:'Almacenamiento',
+           fb:'❌ Las conexiones ya fueron verificadas. Aísle otras variables.'}
+        ]
+      },
+      {
+        fase:'4 Configurar',
+        titulo:'Verificar el modo del controlador',
+        texto:'El disco es detectado. ¿Qué revisa ahora respecto al controlador de almacenamiento?',
+        opciones:[
+          {t:'Ajustar el modo del controlador SATA a AHCI (recomendado para sistemas modernos, no RAID/IDE).',
+           ok:true, tipo:'configurar', componente:'Configuración de BIOS',
+           fb:'✅ <b>Correcto.</b> El controlador quedó configurado en <b>AHCI</b>. Aun así el equipo sigue sin arrancar: hay una segunda variable por revisar.',
+           log:'CONFIGURACIÓN — Modo del controlador SATA ajustado a AHCI.'},
+          {t:'Cambiar el modo del controlador a RAID.',
+           ok:false, tipo:'configurar', componente:'Configuración de BIOS',
+           fb:'❌ RAID es innecesario con un único disco y agrega complejidad.'},
+          {t:'Reemplazar el disco por un SSD nuevo.',
+           ok:false, tipo:'modificar', componente:'Almacenamiento',
+           fb:'❌ El disco está sano y es detectado. El problema es de configuración.'}
+        ]
+      },
+      {
+        fase:'5 Configurar',
+        titulo:'Matriz de compatibilidad de arranque',
+        texto:'El disco está en perfecto estado físico. Revise la compatibilidad entre el modo de BIOS y la tabla de particiones. El disco reporta tabla <b>GPT</b>.',
+        opciones:[
+          {t:'Cambiar el modo de arranque de Legacy/CSM a UEFI Native (el disco usa GPT).',
+           ok:true, tipo:'configurar', componente:'Configuración de BIOS',
+           fb:'✅ <b>Correcto.</b> Un disco GPT debe arrancar en modo UEFI Native. La discordancia GPT + Legacy/CSM era la causa raíz del "Boot device not found".',
+           log:'ACCIÓN CORRECTIVA — Modo de arranque cambiado de Legacy/CSM a UEFI Native. El disco utiliza tabla de particiones GPT.'},
+          {t:'Convertir el disco de GPT a MBR para que coincida con Legacy/CSM.',
+           ok:false, tipo:'modificar', componente:'Almacenamiento',
+           fb:'❌ Convertir la tabla de particiones destruiría el arranque existente y los datos.'},
+          {t:'Desactivar el Secure Boot y dejar el modo Legacy/CSM.',
+           ok:false, tipo:'configurar', componente:'Configuración de BIOS',
+           fb:'❌ No resuelve la discordancia estructural entre GPT y Legacy/CSM.'}
+        ]
+      },
+      {
+        fase:'6 Verificar',
+        titulo:'Verificar la resolución',
+        texto:'¿Cómo confirma que la falla quedó resuelta?',
+        opciones:[
+          {t:'Guardar los cambios (F10), reiniciar y confirmar que el sistema operativo arranca.',
+           ok:true, tipo:'verificar', completa:true,
+           fb:'✅ <b>Falla resuelta.</b> El equipo arranca el sistema operativo correctamente desde el disco GPT en modo UEFI Native.',
+           log:'VERIFICACIÓN — Arranque exitoso del SO en modo UEFI Native. Falla resuelta.'},
+          {t:'Entregar el equipo sin reiniciar.',
+           ok:false,
+           fb:'❌ Sin verificación formal no se puede confirmar la resolución.'},
+          {t:'Volver a modificar el modo del controlador.',
+           ok:false,
+           fb:'❌ Reintroduciría una variable ya descartada.'}
+        ]
+      }
+    ]
+  },
+
+  C:{
+    id:'C',
+    icono:'🔋',
+    tag:'BIOS · CMOS',
+    titulo:'Falla C — Restablecimiento Físico del BIOS (Clear CMOS)',
+    resumen:'El equipo no arranca tras un overclocking inestable. No completa el POST y no es posible acceder a la configuración.',
+    sintoma:'El equipo <b>no arranca</b> tras aplicar un perfil de overclocking inestable. No completa el POST y la configuración de la BIOS resulta inaccesible.',
+    etapas:[
+      {
+        fase:'1 Observar',
+        titulo:'Observar la evidencia',
+        texto:'El equipo no completa el POST después de un cambio de configuración. ¿Qué registra primero?',
+        opciones:[
+          {t:'Registrar el contexto: overclocking/ajuste de BIOS aplicado justo antes del fallo.',
+           ok:true, tipo:'observar',
+           fb:'✅ <b>Correcto.</b> Evidencia: el fallo apareció inmediatamente después de aplicar un perfil de overclocking inestable. El equipo no completa el POST.',
+           log:'OBSERVACIÓN — Equipo no completa el POST tras aplicar perfil de overclocking inestable. BIOS inaccesible.'},
+          {t:'Desmontar el procesador para revisar los pines del socket.',
+           ok:false,
+           fb:'❌ No hay evidencia que apunte al socket. Sería una variable innecesaria.'},
+          {t:'Reinstalar el sistema operativo.',
+           ok:false,
+           fb:'❌ El equipo no llega a iniciar ningún sistema: el problema es previo, en el firmware.'}
+        ]
+      },
+      {
+        fase:'2 Seguridad',
+        titulo:'⛔ Regla de Oro: Desconectar siempre',
+        texto:'Para manipular el interior del gabinete debe cumplir la Regla de Oro. ¿Cuál es el procedimiento correcto?',
+        opciones:[
+          {t:'Apagar la fuente, retirar el cable de alimentación principal y descargar la energía residual.',
+           ok:true, tipo:'seguridad',
+           fb:'✅ <b>Regla de Oro cumplida.</b> Equipo sin alimentación eléctrica y energía residual descargada. Ahora es seguro manipular el hardware.',
+           log:'SEGURIDAD — Fuente apagada, cable de alimentación retirado y energía residual descargada (Regla de Oro).'},
+          {t:'Retirar la pila CR2032 con el equipo todavía conectado a la red eléctrica.',
+           ok:false, requiereDesconexion:true,
+           fb:''},
+          {t:'Puentear los pines CLR_CMOS con el equipo encendido.',
+           ok:false, requiereDesconexion:true,
+           fb:''}
+        ]
+      },
+      {
+        fase:'3 Aislar',
+        titulo:'Aplicar el restablecimiento físico del BIOS',
+        texto:'Equipo sin energía. ¿Qué método utiliza para restablecer la configuración del CMOS?',
+        opciones:[
+          {t:'Retirar la pila CR2032 de la placa base durante 5-10 segundos (Opción A).',
+           ok:true, tipo:'modificar', componente:'CMOS',
+           fb:'✅ <b>Correcto.</b> Pila CR2032 retirada durante 10 segundos. Los valores de CMOS se descargaron y volvieron a los valores por defecto de fábrica.',
+           log:'AISLAMIENTO — Clear CMOS por extracción de pila CR2032 (10 segundos). Valores por defecto restaurados.'},
+          {t:'Puentear los pines CLR_CMOS / CLRTC con un destornillador durante 5 segundos (Opción B).',
+           ok:true, tipo:'modificar', componente:'CMOS',
+           fb:'✅ <b>Correcto.</b> Puente realizado sobre los pines CLR_CMOS durante 5 segundos. La configuración de CMOS volvió a los valores por defecto.',
+           log:'AISLAMIENTO — Clear CMOS por puenteo de pines CLR_CMOS/CLRTC (5 segundos).'},
+          {t:'Cambiar la fuente de alimentación.',
+           ok:false, tipo:'modificar', componente:'Fuente',
+           fb:'❌ No hay evidencia de fallo en la fuente. Está introduciendo una variable innecesaria.'}
+        ]
+      },
+      {
+        fase:'4 Configurar',
+        titulo:'Reconfigurar el BIOS',
+        texto:'El equipo vuelve a completar el POST con los valores por defecto. ¿Qué hace ahora?',
+        opciones:[
+          {t:'Ingresar al BIOS y reconfigurar fecha, hora y orden de arranque.',
+           ok:true, tipo:'configurar', componente:'CMOS',
+           fb:'✅ <b>Correcto.</b> Fecha, hora y orden de arranque reconfigurados. Los valores por defecto quedaron cargados y validados.',
+           log:'ACCIÓN CORRECTIVA — Reconfiguración de fecha, hora y orden de arranque en el BIOS/UEFI.'},
+          {t:'Volver a aplicar el mismo perfil de overclocking anterior.',
+           ok:false, tipo:'configurar', componente:'CMOS',
+           fb:'❌ Volvería a provocar exactamente la misma falla. El perfil era inestable.'},
+          {t:'Dejar los valores por defecto sin revisar el orden de arranque.',
+           ok:false, tipo:'configurar', componente:'CMOS',
+           fb:'❌ El equipo podría no encontrar el dispositivo de arranque. Siempre debe validarse.'}
+        ]
+      },
+      {
+        fase:'5 Verificar',
+        titulo:'Verificar la resolución',
+        texto:'¿Cómo confirma que la falla quedó resuelta?',
+        opciones:[
+          {t:'Reiniciar y confirmar POST correcto y arranque del sistema operativo con valores estables.',
+           ok:true, tipo:'verificar', completa:true,
+           fb:'✅ <b>Falla resuelta.</b> El equipo completa el POST, arranca el sistema operativo y opera con configuración estable de fábrica.',
+           log:'VERIFICACIÓN — POST correcto y arranque del SO con configuración estable. Falla resuelta.'},
+          {t:'Aplicar nuevamente el perfil de overclocking para probar.',
+           ok:false,
+           fb:'❌ Reproduciría la falla y anularía la verificación.'},
+          {t:'Entregar el equipo sin reiniciar.',
+           ok:false,
+           fb:'❌ Sin verificación formal no se puede confirmar la resolución.'}
+        ]
+      }
+    ]
+  }
+};
+
+/* ============================================================
+   NAVEGACIÓN BÁSICA
+   ============================================================ */
+function mostrar(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function toast(msg, err){
+  const t = document.getElementById('toast');
+  t.innerHTML = msg;
+  t.className = err ? 'show err' : 'show';
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>{ t.className=''; }, 3800);
+}
+
+function abrirModal(titulo, html){
+  document.getElementById('modalTitulo').innerHTML = titulo;
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function cerrarModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+function ingresar(){
+  const n = document.getElementById('inNombre').value.trim();
+  const a = document.getElementById('inApellido').value.trim();
+  const c = document.getElementById('inCurso').value.trim();
+  if(!n || !a || !c){
+    toast('⚠️ Complete Nombre, Apellido y Curso para continuar.', true);
+    return;
+  }
+  S.alumno = {nombre:n, apellido:a, curso:c};
+  document.getElementById('userChip').style.display = 'flex';
+  document.getElementById('userChip').innerHTML = '👤 <b>'+n+' '+a+'</b> · '+c;
+  document.getElementById('btnReset').style.display = 'inline-flex';
+  renderCasos();
+  mostrar('screen-casos');
+}
+
+function reiniciarTodo(){
+  if(!confirm('¿Reiniciar la simulación? Se perderá todo el progreso no descargado.')) return;
+  location.reload();
+}
+
+/* ============================================================
+   SELECCIÓN DE CASOS
+   ============================================================ */
+function renderCasos(){
+  const cont = document.getElementById('casosGrid');
+  cont.innerHTML = Object.values(CASOS).map(c=>`
+    <button class="caso-card" onclick="iniciarCaso('${c.id}')">
+      <div class="ic">${c.icono}</div>
+      <span class="tag">${c.tag}</span>
+      <h3>${c.titulo}</h3>
+      <p>${c.resumen}</p>
+      <span class="btn sm primary" style="width:100%">Iniciar diagnóstico →</span>
+    </button>
+  `).join('');
+}
+
+function volverCasos(){
+  if(!confirm('¿Volver a la selección de casos? Se perderá el progreso del caso actual.')) return;
+  mostrar('screen-casos');
+}
+
+/* ============================================================
+   INICIO DE CASO
+   ============================================================ */
+function iniciarCaso(id){
+  S.casoId = id;
+  S.caso = CASOS[id];
+  S.etapaIdx = 0;
+  S.bitacora = [];
+  S.cambioPendiente = null;
+  S.voltajes = {};
+  S.memtest = null;
+  S.smart = null;
+  S.ficha = null;
+  S.desconectado = false;
+  S.completado = false;
+  S.fecha = new Date();
+  S.resolucion = {prevencion:'', observaciones:''};
+
+  document.getElementById('simTag').textContent = S.caso.tag;
+  document.getElementById('simTitulo').textContent = S.caso.titulo;
+  document.getElementById('simSintoma').innerHTML = '⚠️ <b>Síntoma:</b> ' + S.caso.sintoma;
+  document.getElementById('cardFinalizar').style.display = 'none';
+
+  actualizarHerramientas();
+  renderBitacora();
+  renderPendiente();
+  renderEtapa();
+  mostrar('screen-sim');
+}
+
+/* ============================================================
+   RENDER DE ETAPAS
+   ============================================================ */
+function renderEtapa(){
+  const c = S.caso;
+  const et = c.etapas[S.etapaIdx];
+
+  // Barra de fases
+  document.getElementById('fasesBar').innerHTML = c.etapas.map((e,i)=>{
+    let cls = 'fase-pill';
+    if(i < S.etapaIdx) cls += ' done';
+    if(i === S.etapaIdx) cls += ' now';
+    return `<span class="${cls}">${e.fase}</span>`;
+  }).join('');
+
+  document.getElementById('etapaTitulo').textContent = et.titulo;
+  document.getElementById('etapaTexto').innerHTML = et.texto;
+  document.getElementById('feedbackBox').innerHTML = '';
+  document.getElementById('accionesFinales').innerHTML = '';
+
+  const box = document.getElementById('opcionesBox');
+  box.innerHTML = et.opciones.map((op,i)=>`
+    <button class="opcion" onclick="elegirOpcion(${i})">
+      <span class="num">${String.fromCharCode(65+i)}</span>
+      <span>${op.t}</span>
+    </button>
+  `).join('');
+}
+
+function elegirOpcion(i){
+  const et = S.caso.etapas[S.etapaIdx];
+  const op = et.opciones[i];
+
+  /* ---- Regla de Oro (seguridad eléctrica) ---- */
+  if(op.requiereDesconexion && !S.desconectado){
+    alertaPedagogica('⛔ REGLA DE ORO VIOLADA',
+      'Nunca manipule componentes internos con el equipo energizado. Debe <b>apagar la fuente</b>, <b>retirar el cable de alimentación</b> y descargar la energía residual <b>antes</b> de cualquier manipulación física.');
+    return;
+  }
+
+  /* ---- Regla: Un cambio a la vez ---- */
+  if((op.tipo==='modificar' || op.tipo==='configurar') && S.cambioPendiente){
+    if(S.cambioPendiente.componente !== op.componente){
+      alertaPedagogica('⚠️ UN CAMBIO A LA VEZ',
+        'Existe un cambio <b>sin verificar</b> sobre <b>'+S.cambioPendiente.componente+'</b>. Modificar ahora <b>'+op.componente+'</b> introduce una segunda variable simultánea e impide aislar la verdadera causa raíz.<br><br>👉 Verifique el cambio pendiente o utilice el botón <b>“Revertir cambio pendiente”</b> antes de continuar.');
+      return;
+    }
+  }
+
+  /* ---- Opción incorrecta ---- */
+  if(!op.ok){
+    document.getElementById('feedbackBox').innerHTML =
+      `<div class="feedback bad">${op.fb}</div>`;
+    return;
+  }
+
+  /* ---- Opción correcta ---- */
+  if(op.tipo === 'seguridad') S.desconectado = true;
+
+  if(op.tipo === 'modificar' || op.tipo === 'configurar'){
+    S.cambioPendiente = {componente: op.componente, descripcion: op.t};
+  }
+  if(op.tipo === 'verificar'){
+    S.cambioPendiente = null;
+  }
+
+  agregarBitacora(op.log || op.t);
+  renderPendiente();
+
+  if(op.completa){
+    S.completado = true;
+    document.getElementById('cardFinalizar').style.display = 'block';
+  }
+
+  // Ocultar opciones y mostrar feedback + continuar
+  document.getElementById('opcionesBox').innerHTML = '';
+  document.getElementById('feedbackBox').innerHTML =
+    `<div class="feedback ok">${op.fb}</div>`;
+
+  const esUltima = S.etapaIdx >= S.caso.etapas.length - 1;
+  const cont = document.getElementById('accionesFinales');
+
+  if(!esUltima){
+    cont.innerHTML = `<button class="btn primary" onclick="siguienteEtapa()">Continuar ▶</button>`;
+  } else {
+    cont.innerHTML = `<button class="btn green" onclick="mostrarInforme()">📄 Generar Informe Técnico →</button>`;
+  }
+
+  actualizarHerramientas();
+}
+
+function siguienteEtapa(){
+  S.etapaIdx++;
+  renderEtapa();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function alertaPedagogica(titulo, msg){
+  abrirModal(titulo, `
+    <div class="feedback bad" style="margin:0">${msg}</div>
+    <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn amber sm" style="flex:1" onclick="revertirCambio();cerrarModal()">↺ Revertir cambio pendiente</button>
+      <button class="btn ghost sm" style="flex:1" onclick="cerrarModal()">Entendido</button>
+    </div>
+  `);
+  toast('🚫 Acción bloqueada por el protocolo del laboratorio', true);
+}
+
+/* ============================================================
+   BITÁCORA
+   ============================================================ */
+function agregarBitacora(texto){
+  const hora = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  S.bitacora.push({hora, texto});
+  renderBitacora();
+}
+
+function renderBitacora(){
+  const box = document.getElementById('bitacoraBox');
+  if(!S.bitacora.length){
+    box.innerHTML = '<div class="log-empty">Sin registros todavía. Documente cada observación, prueba y resultado.</div>';
+    return;
+  }
+  box.innerHTML = S.bitacora.map(l=>`
+    <div class="log-item"><span class="hora">${l.hora}</span>${l.texto}</div>
+  `).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ============================================================
+   CAMBIO PENDIENTE
+   ============================================================ */
+function renderPendiente(){
+  const box = document.getElementById('pendienteBox');
+  if(!S.cambioPendiente){
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = `
+    <div class="pendiente">
+      🔧 <b>Cambio sin verificar:</b> ${S.cambioPendiente.componente}<br>
+      <span style="font-size:.72rem;opacity:.85">${S.cambioPendiente.descripcion}</span>
+      <button class="btn sm ghost" style="width:100%;margin-top:8px;border-color:rgba(255,176,32,.4);color:#ffd89a" onclick="revertirCambio()">↺ Revertir cambio pendiente</button>
+    </div>`;
+}
+
+function revertirCambio(){
+  if(!S.cambioPendiente) return;
+  agregarBitacora('REVERSIÓN — Se revirtió el cambio sobre '+S.cambioPendiente.componente+' para mantener una sola variable activa.');
+  S.cambioPendiente = null;
+  renderPendiente();
+  toast('↺ Cambio revertido. Puede modificar otro componente.');
+}
+
+/* ============================================================
+   HERRAMIENTAS — ESTADO
+   ============================================================ */
+function memtestDisponible(){
+  if(S.casoId === 'B') return true;
+  return S.completado;
+}
+function diskDisponible(){
+  if(S.casoId === 'B') return true;
+  return S.completado;
+}
+
+function actualizarHerramientas(){
+  document.getElementById('toolMult').classList.toggle('done', Object.keys(S.voltajes).length === RAILS.length);
+  document.getElementById('toolMem').classList.toggle('done', !!S.memtest);
+  document.getElementById('toolDisk').classList.toggle('done', !!S.smart);
+  document.getElementById('toolFicha').classList.toggle('done', !!S.ficha);
+}
+
+/* ============================================================
+   MULTÍMETRO VIRTUAL
+   ============================================================ */
+function abrirMultimetro(){
+  renderMultimetro();
+}
+
+function renderMultimetro(){
+  let filas = RAILS.map(r=>{
+    const m = S.voltajes[r.id];
+    let celdaMed, celdaDesv, celdaEst;
+    if(!m){
+      celdaMed = `<button class="btn-mini" onclick="medirRail('${r.id}')">Medir</button>`;
+      celdaDesv = '<span class="muted">—</span>';
+      celdaEst  = '<span class="muted">—</span>';
+    } else {
+      celdaMed = `<b>${m.valor.toFixed(2)} V</b>`;
+      celdaDesv = m.desv.toFixed(2) + ' %';
+      if(m.clasificado === null || m.clasificado === undefined){
+        celdaEst = `<select class="mini-select" onchange="clasificarRail('${r.id}', this.value)">
+            <option value="">—</option>
+            <option value="1">PASS</option>
+            <option value="0">FAIL</option>
+          </select>`;
+      } else {
+        celdaEst = m.clasificado
+          ? '<span class="ok-txt">PASS ✔</span>'
+          : '<span class="bad-txt">FAIL �’</span>';
+      }
+    }
+    return `<tr>
+      <td><b>${r.id}</b></td>
+      <td>${r.nominal.toFixed(2)} V</td>
+      <td>${celdaMed}</td>
+      <td>${celdaDesv}</td>
+      <td>${celdaEst}</td>
+    </tr>`;
+  }).join('');
+
+  const completos = Object.keys(S.voltajes).length;
+
+  abrirModal('🔌 Multímetro Digital — Voltajes ATX (Conector 24 pines)', `
+    <p class="hint">Tolerancia permitida ATX: <b style="color:var(--accent)">±5 %</b>. Mida cada raíl con el multímetro y clasifíquelo como PASS o FAIL según la desviación obtenida.</p>
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead><tr><th>Raíl</th><th>Nominal</th><th>Medición</th><th>Desviación</th><th>Estado</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:12px">Raíles medidos: <b style="color:var(--accent)">${completos} / ${RAILS.length}</b>. Las mediciones deben cruzarse con los valores reportados por los sensores del BIOS/UEFI para detectar discrepancias.</p>
+    <button class="btn ghost" style="margin-top:6px" onclick="cerrarModal()">Cerrar</button>
+  `);
+}
+
+function medirRail(id){
+  const r = RAILS.find(x=>x.id === id);
+  const factor = 1 + (Math.random()*0.036 - 0.018); // ±1.8 %
+  const valor = +(r.nominal * factor).toFixed(2);
+  const desv = +(((valor - r.nominal) / r.nominal) * 100).toFixed(2);
+  S.voltajes[id] = {valor, desv, clasificado:null};
+  renderMultimetro();
+  actualizarHerramientas();
+}
+
+function clasificarRail(id, val){
+  const m = S.voltajes[id];
+  if(!m) return;
+  const correcto = Math.abs(m.desv) <= 5;
+  const elegido = val === '1';
+  if(elegido === correcto){
+    m.clasificado = elegido;
+    agregarBitacora(`MEDICIÓN ATX — Raíl ${id}: ${m.valor.toFixed(2)} V (nominal ${RAILS.find(r=>r.id===id).nominal.toFixed(2)} V, desviación ${m.desv.toFixed(2)} %) → ${elegido?'PASS':'FAIL'}.`);
+    renderMultimetro();
+    actualizarHerramientas();
+    toast('✔ Clasificación correcta registrada en la bitácora.');
+  } else {
+    toast('❌ Clasificación incorrecta. Revise la tolerancia de ±5 %.', true);
+    renderMultimetro();
+  }
+}
+
+/* ============================================================
+   MEMTEST86+
+   ============================================================ */
+function abrirMemTest(){
+  abrirModal('🧠 MemTest86+ v7.20 — Testeo de Memoria RAM', `
+    <div class="terminal" id="mtTerm"><span class="dim">MemTest86+ v7.20  ·  UEFI Bootable Diagnostic
+Esperando inicio de prueba...</span></div>
+    <div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn primary" id="mtBtn" style="flex:1" onclick="correrMemTest()">▶ Iniciar prueba</button>
+      <button class="btn ghost sm" onclick="cerrarModal()">Cerrar</button>
+    </div>
+  `);
+}
+
+function correrMemTest(){
+  const term = document.getElementById('mtTerm');
+  const btn = document.getElementById('mtBtn');
+  btn.disabled = true;
+
+  if(!memtestDisponible()){
+    term.innerHTML = `<span style="color:#ff6b7a">[ERROR] No es posible iniciar MemTest86+.
+El equipo no completa el arranque / no entrega video.
+Resuelva primero la falla de hardware para poder ejecutar
+la prueba desde el medio de arranque.</span>`;
+    btn.disabled = false;
+    return;
+  }
+
+  const lineas = [
+    'MemTest86+ v7.20  ·  PassMark Software',
+    'CPU: ' + EQUIPOS[S.casoId].cpu,
+    'Memoria detectada: ' + EQUIPOS[S.casoId].ram,
+    '',
+    'Test 0: Patrón propio .......... OK',
+    'Test 1: Direcciones de memoria . OK',
+    'Test 2: Patrón móvil ........... OK',
+    'Test 3: Bloque en movimiento ... OK',
+    '',
+    'Pasadas completadas: 4',
+    'Errores encontrados: 0',
+    '',
+    'PASS COMPLETED — No Errors Found.'
+  ];
+
+  let i = 0;
+  term.innerHTML = '';
+  const iv = setInterval(()=>{
+    if(i >= lineas.length){
+      clearInterval(iv);
+      S.memtest = {pasadas:4, errores:0, fecha:new Date().toLocaleString('es-AR')};
+      agregarBitacora('EVIDENCIA SOFTWARE — MemTest86+: 4 pasadas completadas, 0 errores encontrados.');
+      actualizarHerramientas();
+      btn.disabled = false;
+      btn.textContent = '✔ Prueba finalizada';
+      toast('🧠 MemTest86+ finalizado: 0 errores.');
+      return;
+    }
+    term.innerHTML += (lineas[i] ? lineas[i] : '&nbsp;') + '\n';
+    term.scrollTop = term.scrollHeight;
+    i++;
+  }, 220);
+}
+
+/* ============================================================
+   CRYSTALDISKINFO
+   ============================================================ */
+function abrirDiskInfo(){
+  if(!diskDisponible()){
+    abrirModal('💽 CrystalDiskInfo 9.x — Estado S.M.A.R.T.', `
+      <div class="feedback bad" style="margin:0">
+        No es posible leer el estado S.M.A.R.T. del disco: el equipo no completa el arranque del sistema.
+        Resuelva primero la falla de hardware para poder ejecutar la herramienta desde el entorno de rescate.
+      </div>
+      <button class="btn ghost" style="margin-top:14px" onclick="cerrarModal()">Cerrar</button>
+    `);
+    return;
+  }
+
+  const eq = EQUIPOS[S.casoId];
+  const esHDD = S.casoId === 'B';
+  const modelo = esHDD ? 'ST1000DM010-2EP102' : (S.casoId === 'C' ? 'Samsung SSD 980 PRO 1TB' : 'Kingston NV2 500GB');
+  const serie = esHDD ? 'Z9AKJ2QX' : 'S6B0NL0T812345';
+  const firmware = esHDD ? 'CC43' : (S.casoId === 'C' ? '5B2QGXA7' : 'SNV2111');
+  const temp = esHDD ? 35 : (S.casoId === 'C' ? 41 : 38);
+
+  S.smart = {estado:'Good', modelo, temperatura:temp, fecha:new Date().toLocaleString('es-AR')};
+  agregarBitacora(`EVIDENCIA SOFTWARE — CrystalDiskInfo: ${modelo} — Estado S.M.A.R.T.: Good — Temperatura: ${temp} °C.`);
+  actualizarHerramientas();
+
+  abrirModal('💽 CrystalDiskInfo 9.x — Estado S.M.A.R.T.', `
+    <div class="smart-card">
+      <div class="smart-head">
+        <div class="smart-badge" style="border-color:var(--green);color:var(--green)">Good<br>100 %</div>
+        <div class="smart-info">
+          <b>${modelo}</b>
+          Serial: ${serie} · Firmware: ${firmware}<br>
+          Temperatura: <b>${temp} °C</b> · Estado de salud: <b style="color:var(--green)">Good</b>
+        </div>
+      </div>
+      <div class="tabla-wrap">
+        <table class="tabla" style="min-width:340px">
+          <thead><tr><th>ID</th><th>Atributo</th><th>Valor bruto</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td>01</td><td>Read Error Rate</td><td>0x0000000000</td><td class="ok-txt">OK</td></tr>
+            <tr><td>05</td><td>Reallocated Sectors Count</td><td>0x0000000000</td><td class="ok-txt">OK</td></tr>
+            <tr><td>09</td><td>Power-On Hours</td><td>${esHDD?'0x0000001388':'0x00000004B0'}</td><td class="ok-txt">OK</td></tr>
+            <tr><td>0C</td><td>Power Cycle Count</td><td>${esHDD?'0x00000000FA':'0x0000000064'}</td><td class="ok-txt">OK</td></tr>
+            <tr><td>C2</td><td>Temperature</td><td>${temp} °C</td><td class="ok-txt">OK</td></tr>
+            <tr><td>C5</td><td>Current Pending Sector</td><td>0x0000000000</td><td class="ok-txt">OK</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:12px">
+        Datos a registrar en el informe: estado global de salud, temperatura y valores brutos de atributos críticos
+        (sectores reasignados, sectores pendientes).
+      </p>
+    </div>
+    <button class="btn ghost" style="margin-top:14px" onclick="cerrarModal()">Cerrar</button>
+  `);
+}
+
+/* ============================================================
+   FICHA TÉCNICA
+   ============================================================ */
+function abrirFicha(){
+  const eq = EQUIPOS[S.casoId];
+  const f = S.ficha || eq;
+  abrirModal('📋 Ficha Técnica del Equipo', `
+    <p class="hint">Valores detectados automáticamente. Verifique y confirme los datos antes de incorporarlos al informe técnico.</p>
+    <div class="field"><label>Procesador y Socket</label>
+      <input id="fCpu" value="${f.cpu} — ${f.socket}"></div>
+    <div class="field"><label>Memoria RAM (tipo, capacidad, frecuencia)</label>
+      <input id="fRam" value="${f.ram}"></div>
+    <div class="field"><label>Placa Base, revisión y versión de BIOS</label>
+      <input id="fMother" value="${f.mother} — ${f.bios}"></div>
+    <div class="field"><label>Fuente de Alimentación (modelo y potencia)</label>
+      <input id="fPsu" value="${f.psu}"></div>
+    <div class="field"><label>Almacenamiento principal (modelo y capacidad)</label>
+      <input id="fStorage" value="${f.storage}"></div>
+    <div class="field"><label>Sistema Operativo</label>
+      <input id="fSo" value="${f.so}"></div>
+    <button class="btn primary" onclick="guardarFicha()">💾 Registrar ficha técnica en el informe</button>
+  `);
+}
+
+function guardarFicha(){
+  const g = id => document.getElementById(id).value.trim();
+  const cpuFull = g('fCpu');
+  S.ficha = {
+    cpu: cpuFull,
+    ram: g('fRam'),
+    mother: g('fMother'),
+    psu: g('fPsu'),
+    storage: g('fStorage'),
+    so: g('fSo')
+  };
+  agregarBitacora('DOCUMENTACIÓN — Ficha técnica del equipo registrada.');
+  actualizarHerramientas();
+  cerrarModal();
+  toast('📋 Ficha técnica registrada correctamente.');
+}
+
+/* ============================================================
+   INFORME
+   ============================================================ */
+function mostrarInforme(){
+  renderChecklist();
+  document.getElementById('informePreview').innerHTML = construirPreviewHTML();
+  document.getElementById('txtPrevencion').value = S.resolucion.prevencion;
+  document.getElementById('txtObs').value = S.resolucion.observaciones;
+  mostrar('screen-informe');
+}
+
+function volverSim(){
+  mostrar('screen-sim');
+}
+
+function renderChecklist(){
+  const items = [
+    {ok: S.completado, txt:'Diagnóstico y resolución de la falla completados'},
+    {ok: !!S.ficha, txt:'Ficha técnica del equipo registrada'},
+    {ok: Object.keys(S.voltajes).length === RAILS.length && RAILS.every(r=>S.voltajes[r.id] && S.voltajes[r.id].clasificado !== null && S.voltajes[r.id].clasificado !== undefined), txt:'Registro de voltajes ATX completo (4/4 raíles clasificados)'},
+    {ok: !!S.memtest, txt:'Evidencia de software: MemTest86+ ejecutado'},
+    {ok: !!S.smart, txt:'Evidencia de software: estado S.M.A.R.T. registrado'}
+  ];
+  document.getElementById('checkList').innerHTML = items.map(i=>`
+    <div class="check-item ${i.ok?'done':''}">
+      <span class="dot">${i.ok?'✔':'!'}</span>
+      <span>${i.txt}</span>
+    </div>
+  `).join('');
+}
+
+function construirPreviewHTML(){
+  const a = S.alumno;
+  const f = S.ficha || {};
+  const fecha = S.fecha.toLocaleString('es-AR');
+
+  const filasVolt = RAILS.map(r=>{
+    const m = S.voltajes[r.id];
+    return `<tr>
+      <td>${r.id}</td>
+      <td>${r.nominal.toFixed(2)} V</td>
+      <td>${m ? m.valor.toFixed(2)+' V' : 'No medido'}</td>
+      <td>${m ? m.desv.toFixed(2)+' %' : '—'}</td>
+      <td>${m ? (m.clasificado ? 'PASS' : 'FAIL') : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const bitacoraHTML = S.bitacora.length
+    ? '<ul>' + S.bitacora.map(l=>`<li><b>${l.hora}</b> — ${l.texto}</li>`).join('') + '</ul>'
+    : '<p>Sin registros.</p>';
+
+  return `
+    <div class="informe-portada">
+      <h2>Informe Técnico de Diagnóstico y Resolución de Fallas de Hardware</h2>
+      <p><b>Alumno/Técnico:</b> ${a.nombre} ${a.apellido} &nbsp;|&nbsp; <b>Curso:</b> ${a.curso}</p>
+      <p><b>Fecha y hora del servicio:</b> ${fecha}</p>
+      <p><b>Caso diagnosticado:</b> ${S.caso ? S.caso.titulo : '—'}</p>
+    </div>
+
+    <h4>1. Ficha Técnica del Equipo</h4>
+    <table>
+      <tr><th style="width:34%">Componente</th><th>Detalle</th></tr>
+      <tr><td>Procesador / Socket</td><td>${f.cpu || 'No registrado'}</td></tr>
+      <tr><td>Memoria RAM</td><td>${f.ram || 'No registrado'}</td></tr>
+      <tr><td>Placa Base / BIOS</td><td>${f.mother || 'No registrado'}</td></tr>
+      <tr><td>Fuente de Alimentación</td><td>${f.psu || 'No registrado'}</td></tr>
+      <tr><td>Almacenamiento principal</td><td>${f.storage || 'No registrado'}</td></tr>
+      <tr><td>Sistema Operativo</td><td>${f.so || 'No registrado'}</td></tr>
+    </table>
+
+    <h4>2. Registro de Voltajes ATX (Multímetro — Tolerancia ±5 %)</h4>
+    <table>
+      <tr><th>Raíl</th><th>Valor Nominal</th><th>Medición</th><th>Desviación</th><th>Estado</th></tr>
+      ${filasVolt}
+    </table>
+
+    <h4>3. Evidencia de Software</h4>
+    <p><b>MemTest86+:</b> ${S.memtest ? `${S.memtest.pasadas} pasadas completadas — ${S.memtest.errores} errores encontrados (${S.memtest.fecha}).` : 'No ejecutado.'}</p>
+    <p><b>Estado S.M.A.R.T. (CrystalDiskInfo):</b> ${S.smart ? `${S.smart.modelo} — Estado global: ${S.smart.estado} — Temperatura: ${S.smart.temperatura} °C (${S.smart.fecha}).` : 'No registrado.'}</p>
+
+    <h4>4. Descripción de la Falla Inducida</h4>
+    <p>${S.caso ? S.caso.sintoma.replace(/<[^>]+>/g,'') : '—'}</p>
+
+    <h4>5. Bitácora del Proceso de Diagnóstico</h4>
+    ${bitacoraHTML}
+
+    <h4>6. Resolución y Acción Correctiva</h4>
+    <p>Se aplicó el método científico (observar → hipótesis → aislar → verificar → documentar) modificando un solo componente a la vez, hasta identificar la causa raíz y aplicar la acción correctiva correspondiente al caso <b>${S.caso ? S.caso.id : '—'}</b>.</p>
+
+    <h4>7. Recomendaciones Preventivas y Anexos</h4>
+    <p>${(S.resolucion.prevencion || 'Sin recomendaciones registradas.').replace(/\n/g,'<br>')}</p>
+    ${S.resolucion.observaciones ? `<p><b>Observaciones:</b> ${S.resolucion.observaciones.replace(/\n/g,'<br>')}</p>` : ''}
+  `;
+}
+
+function descargarInforme(){
+  if(!S.completado){
+    toast('⚠️ Debe completar el diagnóstico antes de generar el informe.', true);
+    return;
+  }
+  if(!S.resolucion.prevencion.trim()){
+    toast('⚠️ Redacte al menos una recomendación preventiva antes de descargar.', true);
+    document.getElementById('txtPrevencion').focus();
+    return;
+  }
+
+  const a = S.alumno;
+  const f = S.ficha || {};
+  const fecha = S.fecha.toLocaleString('es-AR');
+
+  const filasVolt = RAILS.map(r=>{
+    const m = S.voltajes[r.id];
+    return `<tr>
+      <td>${r.id}</td>
+      <td>${r.nominal.toFixed(2)} V</td>
+      <td>${m ? m.valor.toFixed(2)+' V' : 'No medido'}</td>
+      <td>${m ? m.desv.toFixed(2)+' %' : '—'}</td>
+      <td>${m ? (m.clasificado ? 'PASS' : 'FAIL') : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const bitacoraHTML = S.bitacora.length
+    ? '<ul>' + S.bitacora.map(l=>`<li><b>${l.hora}</b> — ${l.texto}</li>`).join('') + '</ul>'
+    : '<p>Sin registros.</p>';
+
+  const doc = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Informe Técnico — ${a.apellido}, ${a.nombre}</title>
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color:#1a1a1a; line-height:1.5; }
+  h1 { font-size: 18pt; color:#0a3d55; border-bottom:3px solid #0a86ad; padding-bottom:6px; margin-bottom:4px;}
+  h2 { font-size: 13pt; color:#0a6d8f; margin-top:22px; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #cddde7; padding-bottom:3px;}
+  table { width:100%; border-collapse:collapse; margin-top:6px; font-size:10pt;}
+  th { background:#e5eef4; color:#0a3d55; text-align:left; padding:7px; border:1px solid #b9cbd8;}
+  td { padding:7px; border:1px solid #b9cbd8; vertical-align:top;}
+  ul { margin:6px 0 6px 18px; padding:0;}
+  li { margin-bottom:4px;}
+  .portada { border-left:5px solid #0a86ad; padding-left:14px; margin-bottom:12px;}
+  .firma { margin-top:60px; border-top:1px solid #333; width:280px; padding-top:6px; font-size:9pt; color:#555;}
+  .meta { font-size:9.5pt; color:#555;}
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <h1>Informe Técnico de Diagnóstico y Resolución de Fallas de Hardware</h1>
+  <p class="meta">
+    <b>Alumno / Técnico:</b> ${a.nombre} ${a.apellido}<br>
+    <b>Curso / División:</b> ${a.curso}<br>
+    <b>Fecha y hora del servicio:</b> ${fecha}<br>
+    <b>Caso diagnosticado:</b> ${S.caso ? S.caso.titulo : '—'}
+  </p>
+</div>
+
+<h2>1. Ficha Técnica del Equipo</h2>
+<table>
+  <tr><th style="width:35%">Componente</th><th>Detalle</th></tr>
+  <tr><td>Procesador / Socket</td><td>${f.cpu || 'No registrado'}</td></tr>
+  <tr><td>Memoria RAM</td><td>${f.ram || 'No registrado'}</td></tr>
+  <tr><td>Placa Base / BIOS</td><td>${f.mother || 'No registrado'}</td></tr>
+  <tr><td>Fuente de Alimentación</td><td>${f.psu || 'No registrado'}</td></tr>
+  <tr><td>Almacenamiento principal</td><td>${f.storage || 'No registrado'}</td></tr>
+  <tr><td>Sistema Operativo</td><td>${f.so || 'No registrado'}</td></tr>
+</table>
+
+<h2>2. Registro de Voltajes ATX (Multímetro — Tolerancia ±5 %)</h2>
+<table>
+  <tr><th>Raíl</th><th>Valor Nominal</th><th>Medición</th><th>Desviación</th><th>Estado</th></tr>
+  ${filasVolt}
+</table>
+
+<h2>3. Evidencia de Software</h2>
+<p><b>MemTest86+:</b> ${S.memtest ? `${S.memtest.pasadas} pasadas completadas — ${S.memtest.errores} errores encontrados (${S.memtest.fecha}).` : 'No ejecutado.'}</p>
+<p><b>Estado S.M.A.R.T. (CrystalDiskInfo):</b> ${S.smart ? `${S.smart.modelo} — Estado global: ${S.smart.estado} — Temperatura: ${S.smart.temperatura} °C (${S.smart.fecha}).` : 'No registrado.'}</p>
+
+<h2>4. Descripción de la Falla Inducida</h2>
+<p>${S.caso ? S.caso.sintoma.replace(/<[^>]+>/g,'') : '—'}</p>
+
+<h2>5. Bitácora del Proceso de Diagnóstico</h2>
+${bitacoraHTML}
+
+<h2>6. Resolución y Acción Correctiva</h2>
+<p>Se aplicó el método científico (observar → formular hipótesis → aislar → verificar → documentar) modificando
+un solo componente a la vez, hasta identificar la causa raíz y aplicar la acción correctiva correspondiente
+al caso <b>${S.caso ? S.caso.id : '—'}</b>.</p>
+
+<h2>7. Recomendaciones Preventivas y Anexos</h2>
+<p>${(S.resolucion.prevencion || '').replace(/\n/g,'<br>')}</p>
+${S.resolucion.observaciones ? `<p><b>Observaciones adicionales:</b> ${S.resolucion.observaciones.replace(/\n/g,'<br>')}</p>` : ''}
+
+<div class="firma">Firma del Técnico Responsable</div>
+
+</body>
+</html>`;
+
+  const blob = new Blob(['\ufeff', doc], {type:'application/msword'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Informe_Tecnico_${a.apellido}_${a.nombre}.doc`.replace(/\s+/g,'_');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+
+  toast('✅ Informe Técnico descargado correctamente.');
+}
+
+/* ============================================================
+   INICIALIZACIÓN
+   ============================================================ */
+document.getElementById('inNombre').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('inApellido').focus(); });
+document.getElementById('inApellido').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('inCurso').focus(); });
+document.getElementById('inCurso').addEventListener('keydown', e=>{ if(e.key==='Enter') ingresar(); });
+</script>
+</body>
+</html>
